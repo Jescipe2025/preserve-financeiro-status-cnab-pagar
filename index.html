@@ -16,7 +16,19 @@
 html,body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--body)}
 .wrap{max-width:1240px;margin:0 auto;padding:0 18px}
 header.top{background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40}
-header.top .wrap{display:flex;align-items:center;gap:16px;padding-block:12px}
+header.top .wrap{display:flex;align-items:center;gap:16px;padding-block:12px;flex-wrap:wrap}
+.mangrp{display:inline-flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--deep)}
+.mangrp a,.mangrp button{display:inline-flex;align-items:center;gap:7px;font:600 13px var(--body);padding:9px 12px;color:var(--fg);background:none;border:0;cursor:pointer;text-decoration:none;white-space:nowrap}
+.mangrp a+button,.mangrp button+a{border-left:1px solid var(--border)}
+.mangrp a:hover,.mangrp button:hover{color:var(--gold)}
+.mangrp svg{width:16px;height:16px}
+@media(max-width:760px){.mangrp,.lockbtn{order:5}}
+.viewer{position:fixed;inset:0;z-index:120;background:rgba(5,6,10,.85);display:flex;flex-direction:column}
+.viewer .vbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.viewer .vbar h3{margin:0;flex:1;min-width:160px;font-size:15px;color:var(--strong)}
+.viewer .vbar a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.viewer iframe{flex:1;width:100%;border:0;background:#525659}
+.viewer .vnote{font-size:12px;color:var(--muted);padding:6px 16px;background:var(--card);border-top:1px solid var(--border)}
 .logo{width:60px;height:60px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px var(--border)}
 .logo.cli{object-fit:contain;background:#fff}.logo.jes{object-fit:cover}
 .tt{flex:1;min-width:0}
@@ -131,6 +143,9 @@ var ACTS=[
  {k:'retorno',l:'Arquivo Retorno'},{k:'ocorr',l:'Cad. Ocorrências'},{k:'param',l:'Parâmetro Bancos'}
 ];
 var TRAIN=[{k:'remessa',l:'Geração e envio arquivos remessa'},{k:'baixa',l:'Arquivo retorno (baixa)'},{k:'concdda',l:'Conciliação DDA'}];
+var MANUAL='Manual_Jescipe_CNAB_Pagar_DDA.pdf';
+var ICON_READ='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z"/><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/></svg>';
+var ICON_DL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>';
 var CFG_KEY='jescipe_cnab240_cfg', NAME_KEY='jescipe_cnab240_nome';
 
 function migrate(s){
@@ -245,6 +260,7 @@ function render(){
  var h='<header class="top"><div class="wrap"><img class="logo cli" src="'+LOGOS.cli+'" alt="Preserve Liserve">'
   +'<div class="tt"><div class="eyebrow">JESCIPE · Soluções em TI</div><h1>Cronograma CNAB Contas a Pagar · Modelo 240</h1>'
   +'<div class="sub">'+srcLine()+(loading?'':' · <button class="lnk" id="reload">Atualizar</button>')+'</div></div>'
+  +'<div class="mangrp" role="group" aria-label="Manual do usuário"><button id="readman" title="Ler o manual nesta página">'+ICON_READ+'Ler manual</button><a href="'+MANUAL+'" download title="Baixar o manual em PDF">'+ICON_DL+'Baixar</a></div>'
   +'<button class="lockbtn'+(unlocked?' open':'')+'" id="lock">'+(unlocked?ICON_OPEN+'Edição liberada':ICON_LOCK+'Desbloquear edição')+'</button>'
   +'<img class="logo jes" src="'+LOGOS.jes+'" alt="JESCIPE"></div></header>';
  h+='<main><div class="wrap" style="display:flex;flex-direction:column;gap:16px">';
@@ -323,6 +339,17 @@ function openModal(kind){closeModal();modal={kind:kind};
  m.innerHTML='<form class="box" id="mf">'+body+'<div class="err" id="merr"></div><div class="act"><button type="button" class="btn" id="mc">'+(btn?'Cancelar':'Fechar')+'</button>'+(btn?'<button type="submit" class="btn pri" id="mok">'+btn+'</button>':'')+'</div></form>';
  document.body.appendChild(m);setTimeout(function(){var i=m.querySelector('input[type=password]')||m.querySelector('button');if(i)i.focus()},30);
 }
+function openManual(){
+ closeManual();var v=document.createElement('div');v.className='viewer';v.id='viewer';v.setAttribute('role','dialog');v.setAttribute('aria-label','Manual do usuário');
+ v.innerHTML='<div class="vbar"><h3>Manual do Usuário · CNAB Contas a Pagar e Conciliação DDA</h3>'
+  +'<a class="btn" href="'+MANUAL+'" target="_blank" rel="noopener">Abrir em nova aba</a><a class="btn" href="'+MANUAL+'" download>Baixar PDF</a><button class="btn pri" id="vclose">Fechar</button></div>'
+  +'<iframe src="'+MANUAL+'#view=FitH" title="Manual do usuário em PDF"></iframe>'
+  +'<div class="vnote">Se o manual não aparecer (comum em celulares), use <b>Abrir em nova aba</b> ou <b>Baixar PDF</b>.</div>';
+ document.body.appendChild(v);document.body.style.overflow='hidden';document.getElementById('vclose').focus();
+}
+function closeManual(){var v=document.getElementById('viewer');if(v){v.remove();document.body.style.overflow=''}}
+document.addEventListener('click',function(e){if(e.target.id==='vclose')closeManual()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeManual()});
 function closeModal(){modal=null;var m=document.getElementById('modal');if(m)m.remove()}
 function merr(t,ok){var e=document.getElementById('merr');if(e){e.textContent=t;e.style.color=ok?'var(--sim)':''}}
 function mbusy(b,label){var k=document.getElementById('mok');if(k){k.disabled=b;if(label)k.textContent=label}}
@@ -389,6 +416,7 @@ app.addEventListener('click',function(e){
  if(t.dataset.tab){tab=t.dataset.tab;render();return}
  if(t.dataset.bank){bankSel=t.dataset.bank;render();return}
  if(t.id==='admin'){openModal('admin');return}
+ if(t.id==='readman'){openManual();return}
  if(t.id==='reload'){if(dirty&&!confirm('Descartar as alterações não salvas e carregar a versão do GitHub?'))return;msg='';loadRemote();return}
  if(t.id==='lock'){if(unlocked){lock()}else openModal(onPages()?'login':'nopages');return}
  if(t.id==='lock2'){lock();return}
