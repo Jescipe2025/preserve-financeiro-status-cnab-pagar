@@ -39,6 +39,10 @@ main{padding-block:18px 60px;display:flex;flex-direction:column;gap:16px}
 .tab .p{font:500 11.5px var(--mono);color:var(--muted)}
 .tab.on{background:var(--gold-bg);border-color:var(--gold);color:var(--gold)}
 .tab.on .p{color:var(--gold)}
+.tabs .lbl{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;align-self:center;width:62px}
+.tabs.bk .tab{padding:7px 12px;font-size:12.5px}
+.tabs.bk .tab.on{background:#16294a;border-color:#60a5fa;color:#93c5fd}.tabs.bk .tab.on .p{color:#93c5fd}
+.tabs.bk{margin-top:-8px}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media(max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px}
@@ -134,6 +138,8 @@ function migrate(s){
  if(s.data)Object.keys(s.data).forEach(function(c){delete s.data[c].train});
  delete s.passHash;return s}
 var state=migrate(JSON.parse(JSON.stringify(EMB)));
+var bankSel='__all';
+function banks(){return bankSel==='__all'||state.banks.indexOf(bankSel)<0?state.banks:[bankSel]}
 var unlocked=false, tab='__all', modal=null, dirty=false, busy=false, msg='', msgKind='';
 var token=null, who='', sha=null, source='index', loading=true;
 var app=document.getElementById('app');
@@ -200,9 +206,9 @@ function fmt(iso){if(!iso)return'';var d=new Date(iso);return d.toLocaleDateStri
 function pc(a,b){return b?Math.round(a/b*100):0}
 function bankStats(co,bk){var r=state.data[co].banks[bk],s=0;ACTS.forEach(function(a){if(r[a.k]==='SIM')s++});return{s:s,t:ACTS.length}}
 function trainStats(){var r=state.train,s=0;TRAIN.forEach(function(a){if(r[a.k]==='SIM')s++});return{s:s,t:TRAIN.length}}
-function coStats(co){var s=0,t=0;state.banks.forEach(function(b){var x=bankStats(co,b);s+=x.s;t+=x.t});return{s:s,t:t}}
+function coStats(co){var s=0,t=0;banks().forEach(function(b){var x=bankStats(co,b);s+=x.s;t+=x.t});return{s:s,t:t}}
 function sum(cos){var s=0,t=0;cos.forEach(function(c){var x=coStats(c);s+=x.s;t+=x.t});return{s:s,t:t}}
-function overall(){var x=sum(state.companies),y=trainStats();return{s:x.s+y.s,t:x.t+y.t}}
+function overall(){var x=sum(state.companies);if(bankSel!=='__all')return x;var y=trainStats();return{s:x.s+y.s,t:x.t+y.t}}
 
 /* ---------- gráficos ---------- */
 function bar(name,s,t){var p=pc(s,t);
@@ -217,10 +223,10 @@ function heatColor(p){var a=[42,24,24],b=[74,222,128],m=[160,120,40],r,t;
  if(p<=50){t=p/50;r=a.map(function(v,i){return Math.round(v+(m[i]-v)*t)})}else{t=(p-50)/50;r=m.map(function(v,i){return Math.round(v+(b[i]-v)*t)})}
  return 'rgb('+r.join(',')+')'}
 function heatmap(){
- var h='<div class="heat"><table><colgroup><col class="c0">'+state.banks.map(function(){return'<col>'}).join('')+'</colgroup><thead><tr><th></th>'+state.banks.map(function(b){return'<th>'+esc(b)+'</th>'}).join('')+'</tr></thead><tbody>';
+ var h='<div class="heat"><table><colgroup><col class="c0">'+banks().map(function(){return'<col>'}).join('')+'</colgroup><thead><tr><th></th>'+banks().map(function(b){return'<th>'+esc(b)+'</th>'}).join('')+'</tr></thead><tbody>';
  state.companies.forEach(function(co){
   h+='<tr class="'+(co===tab?'sel':'')+'"><th class="r">'+esc(co)+'</th>';
-  state.banks.forEach(function(b){var x=bankStats(co,b),p=pc(x.s,x.t);h+='<td style="background:'+heatColor(p)+';color:'+(p>65?'#06210f':'#fff')+'" title="'+esc(co+' · '+b)+': '+x.s+'/'+x.t+'">'+p+'%</td>'});
+  banks().forEach(function(b){var x=bankStats(co,b),p=pc(x.s,x.t);h+='<td style="background:'+heatColor(p)+';color:'+(p>65?'#06210f':'#fff')+'" title="'+esc(co+' · '+b)+': '+x.s+'/'+x.t+'">'+p+'%</td>'});
   h+='</tr>'});
  return h+'</tbody></table></div>'}
 
@@ -249,20 +255,21 @@ function render(){
    +'<button class="btn" id="undo"'+(dirty&&!busy?'':' disabled')+'>Descartar alterações</button>'
    +'<button class="btn" id="exp">Exportar JSON</button><button class="btn" id="impb">Importar JSON</button><button class="btn" id="lock2">Bloquear</button></div>';
  }
- h+='<nav class="tabs" aria-label="Empresas">'+tabBtn('__all','Visão geral',overall())+state.companies.map(function(c){return tabBtn(c,c,coStats(c))}).join('')+'</nav>';
+ h+='<nav class="tabs" aria-label="Empresas"><span class="lbl">Empresa</span>'+tabBtn('__all','Visão geral',overall())+state.companies.map(function(c){return tabBtn(c,c,coStats(c))}).join('')+'</nav>';
+ h+=bankNav();
  if(tab!=='__all')h+=trainCard();
- var bancosOk=0,bancosTot=0;cos.forEach(function(c){state.banks.forEach(function(b){var x=bankStats(c,b);bancosTot++;if(x.s===x.t)bancosOk++})});
+ var bancosOk=0,bancosTot=0;cos.forEach(function(c){banks().forEach(function(b){var x=bankStats(c,b);bancosTot++;if(x.s===x.t)bancosOk++})});
  var trS=trainStats();
  h+='<section class="kpis">'
   +'<div class="kpi">'+donut(p,64)+'<div><div class="v">'+p+'%</div><div class="l">Concluído '+(tab==='__all'?'geral':'na empresa')+'</div></div></div>'
   +'<div class="kpi"><div><div class="v" style="color:var(--sim)">'+tot.s+'</div><div class="l">Atividades SIM</div></div></div>'
   +'<div class="kpi"><div><div class="v" style="color:var(--nao)">'+(tot.t-tot.s)+'</div><div class="l">Atividades NÃO</div></div></div>'
   +'<div class="kpi"><div><div class="v">'+bancosOk+'<span style="font-size:16px;color:var(--muted)">/'+bancosTot+'</span></div><div class="l">Bancos 100% concluídos</div></div></div></section>';
- var byBank=state.banks.map(function(b){var s=0,t=0;cos.forEach(function(c){var x=bankStats(c,b);s+=x.s;t+=x.t});return{n:b,s:s,t:t}});
- var byAct=ACTS.map(function(a){var s=0,t=0;cos.forEach(function(c){state.banks.forEach(function(b){t++;if(state.data[c].banks[b][a.k]==='SIM')s++})});return{n:a.l,s:s,t:t}});
- if(tab==='__all')byAct.push({n:'Treinamento (único)',s:trS.s,t:trS.t});
+ var byBank=banks().map(function(b){var s=0,t=0;cos.forEach(function(c){var x=bankStats(c,b);s+=x.s;t+=x.t});return{n:b,s:s,t:t}});
+ var byAct=ACTS.map(function(a){var s=0,t=0;cos.forEach(function(c){banks().forEach(function(b){t++;if(state.data[c].banks[b][a.k]==='SIM')s++})});return{n:a.l,s:s,t:t}});
+ if(tab==='__all'&&bankSel==='__all')byAct.push({n:'Treinamento (único)',s:trS.s,t:trS.t});
  var lg='<div class="legend"><span><i class="dot" style="background:var(--sim)"></i>SIM</span><span><i class="dot" style="background:#5a2626"></i>NÃO</span></div>';
- var scopeTxt=tab==='__all'?'todas as empresas':esc(tab);
+ var scopeTxt=(tab==='__all'?'todas as empresas':esc(tab))+(bankSel==='__all'?'':' · '+esc(bankSel));
  h+='<div class="grid2">'
   +'<section class="card"><h2>Andamento por banco<small>'+scopeTxt+'</small></h2><div class="bars">'+byBank.map(function(x){return bar(x.n,x.s,x.t)}).join('')+'</div>'+lg+'</section>'
   +'<section class="card"><h2>Andamento por atividade<small>'+scopeTxt+'</small></h2><div class="bars">'+byAct.map(function(x){return bar(x.n,x.s,x.t)}).join('')+'</div>'+lg+'</section></div>';
@@ -279,6 +286,11 @@ function render(){
 function trainCard(){var y=trainStats();
  return '<section class="card"><h2>Treinamento<small>único para todas as empresas · '+y.s+' de '+y.t+' concluídos</small></h2><div class="train">'
   +TRAIN.map(function(x){return'<div class="tr-i"><span>'+esc(x.l)+'</span>'+yn(state.train[x.k],'data-tr="'+x.k+'"')+'</div>'}).join('')+'</div></section>'}
+function bankNav(){var cs=tab==='__all'?state.companies:[tab];
+ function st(bs){var s=0,t=0;cs.forEach(function(c){bs.forEach(function(b){var x=bankStats(c,b);s+=x.s;t+=x.t})});return pc(s,t)}
+ return '<nav class="tabs bk" aria-label="Bancos"><span class="lbl">Banco</span>'
+  +'<button class="tab'+(bankSel==='__all'?' on':'')+'" data-bank="__all">Todos os bancos<span class="p">'+st(state.banks)+'%</span></button>'
+  +state.banks.map(function(b){return'<button class="tab'+(bankSel===b?' on':'')+'" data-bank="'+esc(b)+'">'+esc(b)+'<span class="p">'+st([b])+'%</span></button>'}).join('')+'</nav>'}
 function tabBtn(id,label,x){return'<button class="tab'+(tab===id?' on':'')+'" data-tab="'+esc(id)+'">'+esc(label)+'<span class="p">'+pc(x.s,x.t)+'%</span></button>'}
 function yn(val,attr){var v=val==='SIM'?'SIM':'NAO';
  return '<select class="yn '+v+'" '+attr+(unlocked?'':' disabled')+' aria-label="SIM ou NÃO"><option value="SIM"'+(v==='SIM'?' selected':'')+'>SIM</option><option value="NÃO"'+(v==='NAO'?' selected':'')+'>NÃO</option></select>'}
@@ -286,7 +298,7 @@ function companyTable(co){
  var d=state.data[co];
  var h='<section class="tbl"><table><thead><tr><th rowspan="2">Banco</th><th class="grp" colspan="4">Layouts</th><th rowspan="2">Arquivo<br>retorno</th><th rowspan="2">Cadastro de<br>ocorrências</th><th rowspan="2">Parâmetro<br>de bancos</th><th rowspan="2">Progresso</th><th rowspan="2" style="text-align:left">Status</th></tr>'
   +'<tr>'+ACTS.slice(0,4).map(function(a){return'<th>'+esc(a.l)+'</th>'}).join('')+'</tr></thead><tbody>';
- state.banks.forEach(function(b){var r=d.banks[b],x=bankStats(co,b),p=pc(x.s,x.t);
+ banks().forEach(function(b){var r=d.banks[b],x=bankStats(co,b),p=pc(x.s,x.t);
   h+='<tr><td class="bank">'+esc(b)+'</td>'+ACTS.map(function(a){return'<td>'+yn(r[a.k],'data-co="'+esc(co)+'" data-bk="'+esc(b)+'" data-k="'+a.k+'"')+'</td>'}).join('')
    +'<td><div class="mini"><div class="track"><i class="s" style="width:'+p+'%"></i></div><span>'+p+'%</span></div></td>'
    +'<td><textarea class="st" data-co="'+esc(co)+'" data-bk="'+esc(b)+'" data-k="status"'+(unlocked?'':' disabled')+' placeholder="'+(unlocked?'Situação atual…':'')+'">'+esc(r.status)+'</textarea></td></tr>'});
@@ -375,6 +387,7 @@ function download(name,text,type){var a=document.createElement('a');a.href=URL.c
 app.addEventListener('click',function(e){
  var t=e.target.closest('button');if(!t)return;
  if(t.dataset.tab){tab=t.dataset.tab;render();return}
+ if(t.dataset.bank){bankSel=t.dataset.bank;render();return}
  if(t.id==='admin'){openModal('admin');return}
  if(t.id==='reload'){if(dirty&&!confirm('Descartar as alterações não salvas e carregar a versão do GitHub?'))return;msg='';loadRemote();return}
  if(t.id==='lock'){if(unlocked){lock()}else openModal(onPages()?'login':'nopages');return}
